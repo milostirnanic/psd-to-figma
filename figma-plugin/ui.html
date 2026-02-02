@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    h2 {
+      margin: 0 0 16px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .button-primary {
+      background: #0066FF;
+      color: white;
+    }
+    .button-primary:hover {
+      background: #0052CC;
+    }
+    .button-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    .button-secondary:hover {
+      background: #e0e0e0;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      display: none;
+    }
+    .status.success {
+      background: #e6f7ed;
+      color: #0b5e34;
+      display: block;
+    }
+    .status.error {
+      background: #ffe6e6;
+      color: #c00;
+      display: block;
+    }
+    .status.loading {
+      background: #e6f2ff;
+      color: #0066FF;
+      display: block;
+    }
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid #0066FF;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <h2>PSD Content Importer</h2>
+  
+  <div class="input-group">
+    <label for="structureUrl">Structure File URL:</label>
+    <input 
+      type="text" 
+      id="structureUrl" 
+      placeholder="http://localhost:3000/uploads/figma-structure-xxx.json"
+      value="http://localhost:3000/uploads/figma-structure-latest.json"
+    />
+  </div>
+  
+  <div class="button-group">
+    <button class="button-primary" id="import">Import Content</button>
+    <button class="button-secondary" id="cancel">Cancel</button>
+  </div>
+  
+  <div id="status" class="status"></div>
+  
+  <script>
+    const importBtn = document.getElementById('import');
+    const cancelBtn = document.getElementById('cancel');
+    const statusDiv = document.getElementById('status');
+    const urlInput = document.getElementById('structureUrl');
+    
+    importBtn.onclick = async () => {
+      const url = urlInput.value.trim();
+      
+      if (!url) {
+        showStatus('error', 'Please enter a structure file URL');
+        return;
+      }
+      
+      try {
+        showStatus('loading', 'Fetching structure file...');
+        importBtn.disabled = true;
+        
+        // Fetch the structure file
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        showStatus('loading', 'Creating nodes in Figma...');
+        
+        // Send to plugin code
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'import-nodes',
+            data: {
+              nodes: data.nodes || [],
+              fileName: data.name || 'Converted PSD'
+            }
+          } 
+        }, '*');
+        
+      } catch (error) {
+        showStatus('error', `Error: ${error.message}`);
+        importBtn.disabled = false;
+      }
+    };
+    
+    cancelBtn.onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+    };
+    
+    // Listen for messages from plugin code
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg.type === 'import-complete') {
+        if (msg.success) {
+          showStatus('success', msg.message);
+          setTimeout(() => {
+            parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*');
+          }, 2000);
+        } else {
+          showStatus('error', msg.message);
+          importBtn.disabled = false;
+        }
+      }
+    };
+    
+    function showStatus(type, message) {
+      statusDiv.className = `status ${type}`;
+      if (type === 'loading') {
+        statusDiv.innerHTML = `<span class="spinner"></span>${message}`;
+      } else {
+        statusDiv.textContent = message;
+      }
+    }
+  </script>
+</body>
+</html>

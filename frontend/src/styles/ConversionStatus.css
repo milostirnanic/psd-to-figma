@@ -1,0 +1,190 @@
+/**
+ * ConversionStatus Component Styles
+ */
+
+.conversion-status {
+  width: 100%;
+}
+
+.conversion-status-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-3xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.conversion-status-spinner {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.conversion-status-spinner-icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-accent);
+  animation: spin 1s linear infinite;
+}
+
+.conversion-status-spinner-circle {
+  opacity: 0.25;
+}
+
+.conversion-status-spinner-path {
+  opacity: 0.75;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.conversion-status-content {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.conversion-status-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.conversion-status-description {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.conversion-status-progress {
+  margin-bottom: var(--spacing-xl);
+}
+
+.conversion-status-progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background-color: var(--color-bg);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--spacing-sm);
+}
+
+.conversion-status-progress-fill {
+  height: 100%;
+  background-color: var(--color-accent);
+  transition: width var(--transition-slow);
+  border-radius: var(--radius-lg);
+}
+
+.conversion-status-progress-text {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.conversion-status-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border);
+}
+
+.status-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.status-step-indicator {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: var(--color-bg);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+}
+
+.status-step.is-active .status-step-indicator {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.status-step.is-complete .status-step-indicator {
+  border-color: var(--color-success);
+  background-color: var(--color-success);
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.status-step-check {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: white;
+}
+
+.status-step-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  text-align: center;
+}
+
+.status-step.is-active .status-step-label {
+  color: var(--color-accent);
+}
+
+.status-step.is-complete .status-step-label {
+  color: var(--color-success);
+}
+
+@media (max-width: 768px) {
+  .conversion-status-card {
+    padding: var(--spacing-xl);
+  }
+
+  .conversion-status-spinner-icon {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .conversion-status-title {
+    font-size: 1.25rem;
+  }
+
+  .conversion-status-description {
+    font-size: 0.875rem;
+  }
+
+  .conversion-status-steps {
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+  }
+
+  .status-step {
+    flex-basis: calc(50% - var(--spacing-sm));
+  }
+}

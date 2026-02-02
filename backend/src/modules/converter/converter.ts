@@ -3,15 +3,18 @@
  * Transforms ParsedPSD data into Figma-compatible format
  */
 
-import { 
-  ParsedPSD, 
-  ParsedLayer, 
-  FigmaNodeData, 
+import {
+  ParsedPSD,
+  ParsedLayer,
+  FigmaNodeData,
   FigmaNodeType,
   LayerType,
   UnsupportedFeature
 } from '../../types';
 import { logger } from '../../utils/logger';
+import { exportLayerAsPNG } from '../../utils/imageExporter';
+import path from 'path';
+import { config } from '../../config';
 
 export interface ConversionMetrics {
   totalLayers: number;
@@ -60,7 +63,7 @@ export async function convertToFigma(parsedPSD: ParsedPSD): Promise<ConversionRe
 
   // Convert each layer
   for (const layer of parsedPSD.layers) {
-    const converted = convertLayer(layer, metrics);
+    const converted = await convertLayer(layer, metrics);
     if (converted) {
       rootFrame.children!.push(converted);
     }
@@ -69,28 +72,29 @@ export async function convertToFigma(parsedPSD: ParsedPSD): Promise<ConversionRe
   figmaNodes.push(rootFrame);
 
   logger.info('Conversion metrics', metrics);
-  
+
   return {
     figmaNodes,
     conversionMetrics: metrics
   };
 }
 
-function convertLayer(layer: ParsedLayer, metrics: ConversionMetrics): FigmaNodeData | null {
+async function convertLayer(layer: ParsedLayer, metrics: ConversionMetrics): Promise<FigmaNodeData | null> {
   metrics.totalLayers++;
 
   try {
     switch (layer.type) {
       case 'group':
-        return convertGroup(layer, metrics);
+        return await convertGroup(layer, metrics);
       case 'text':
         return convertText(layer, metrics);
       case 'shape':
         return convertShape(layer, metrics);
       case 'image':
-        return convertImage(layer, metrics);
       case 'smartObject':
-        return flattenLayer(layer, metrics, 'Smart Objects are not supported');
+      case 'unknown':
+        // Treat all raster/pixel-based layers as images
+        return await convertRasterLayer(layer, metrics);
       case 'adjustment':
         return flattenLayer(layer, metrics, 'Adjustment layers are not supported');
       default:
@@ -103,7 +107,7 @@ function convertLayer(layer: ParsedLayer, metrics: ConversionMetrics): FigmaNode
   }
 }
 
-function convertGroup(layer: ParsedLayer, metrics: ConversionMetrics): FigmaNodeData {
+async function convertGroup(layer: ParsedLayer, metrics: ConversionMetrics): Promise<FigmaNodeData> {
   const figmaNode: FigmaNodeData = {
     type: 'FRAME',
     name: layer.name,
@@ -120,7 +124,7 @@ function convertGroup(layer: ParsedLayer, metrics: ConversionMetrics): FigmaNode
   // Convert children
   if (layer.children) {
     for (const child of layer.children) {
-      const converted = convertLayer(child, metrics);
+      const converted = await convertLayer(child, metrics);
       if (converted) {
         figmaNode.children!.push(converted);
       }
@@ -196,31 +200,78 @@ function convertShape(layer: ParsedLayer, metrics: ConversionMetrics): FigmaNode
   return figmaNode;
 }
 
-function convertImage(layer: ParsedLayer, metrics: ConversionMetrics): FigmaNodeData {
-  // Images need to be uploaded to Figma first
-  // For now, create a placeholder rectangle
+async function convertRasterLayer(layer: ParsedLayer, metrics: ConversionMetrics): Promise<FigmaNodeData> {
+  // Check if layer has image data
+  if (!layer.imageData) {
+    logger.debug(`Raster layer "${layer.name}" has no image data, treating as empty rectangle`);
+
+    // Create placeholder for layers without image data
+    metrics.flattenedLayers++;
+    metrics.unsupportedFeatures.push({
+      layerName: layer.name,
+      feature: 'Raster Image',
+      reason: 'No pixel data available'
+    });
+
+    return {
+      type: 'RECTANGLE',
+      name: `${layer.name} (No Data)`,
+      bounds: layer.bounds,
+      visible: layer.visible,
+      opacity: layer.opacity,
+      shapeProperties: {
+        fills: [{
+          type: 'SOLID',
+          color: { r: 0.9, g: 0.9, b: 0.9, a: 0.3 }
+        }]
+      }
+    };
+  }
+
+  // Export image data as PNG
+  const exportDir = path.join(config.uploadDir, 'exported');
+  const exportedImage = await exportLayerAsPNG(
+    {
+      width: layer.imageData.width,
+      height: layer.imageData.height,
+      data: layer.imageData.buffer
+    },
+    layer.name,
+    exportDir
+  );
+
+  // Create IMAGE node
   const figmaNode: FigmaNodeData = {
-    type: 'RECTANGLE',
+    type: 'IMAGE',
     name: layer.name,
     bounds: layer.bounds,
     visible: layer.visible,
     opacity: layer.opacity,
-    shapeProperties: {
+    imageProperties: {
+      imageRef: exportedImage?.filePath || '',
       fills: [{
-        type: 'SOLID',
-        color: { r: 0.8, g: 0.8, b: 0.8, a: 1 }
+        type: 'IMAGE',
+        scaleMode: 'FILL',
+        imageHash: exportedImage?.filePath || ''
       }]
     }
   };
 
-  metrics.warnings.push(`Image layer "${layer.name}" needs manual image upload`);
   metrics.editableLayers++;
+
+  // Add info to report
+  const layerTypeDesc = layer.type === 'smartObject' ? 'Smart Object (Raster)' :
+    layer.type === 'image' ? 'Raster Image' :
+      'Raster Layer';
+
+  logger.debug(`Converted ${layerTypeDesc}: ${layer.name} (${layer.imageData.width}x${layer.imageData.height})`);
+
   return figmaNode;
 }
 
 function flattenLayer(
-  layer: ParsedLayer, 
-  metrics: ConversionMetrics, 
+  layer: ParsedLayer,
+  metrics: ConversionMetrics,
   reason: string
 ): FigmaNodeData {
   metrics.flattenedLayers++;

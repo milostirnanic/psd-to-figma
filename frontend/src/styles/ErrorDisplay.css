@@ -1,0 +1,117 @@
+/**
+ * ErrorDisplay Component Styles
+ */
+
+.error-display {
+  width: 100%;
+}
+
+.error-display-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-3xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.error-display-icon-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.error-display-icon {
+  width: 4rem;
+  height: 4rem;
+  color: var(--color-error);
+}
+
+.error-display-content {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+}
+
+.error-display-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.error-display-message {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.error-display-suggestions {
+  padding: var(--spacing-xl);
+  background-color: var(--color-bg);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.error-display-suggestions-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.error-display-suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.error-display-suggestions-list li {
+  padding-left: var(--spacing-lg);
+  position: relative;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.error-display-suggestions-list li::before {
+  content: '•';
+  position: absolute;
+  left: var(--spacing-sm);
+  color: var(--color-text-tertiary);
+  font-weight: bold;
+}
+
+.error-display-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--color-border);
+}
+
+.error-display-actions button {
+  min-width: 10rem;
+}
+
+@media (max-width: 768px) {
+  .error-display-card {
+    padding: var(--spacing-xl);
+  }
+
+  .error-display-icon {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .error-display-title {
+    font-size: 1.5rem;
+  }
+
+  .error-display-message {
+    font-size: 0.875rem;
+  }
+}

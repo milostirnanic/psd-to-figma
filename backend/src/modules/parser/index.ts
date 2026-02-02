@@ -3,18 +3,47 @@
  * Uses ag-psd library to parse PSD files and convert to our intermediate format
  */
 
-import { readPsd, Psd, Layer } from 'ag-psd';
+import { readPsd, Psd, Layer, initializeCanvas } from 'ag-psd';
 import fs from 'fs/promises';
-import { ParsedPSD, ParsedLayer, LayerType, Bounds, TextData, Color } from '../../types';
+import { ParsedPSD, ParsedLayer, LayerType, Bounds, TextData, Color, ImageData } from '../../types';
 import { logger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+
+// Initialize ag-psd with minimal canvas functions
+// We don't need actual canvas rendering, just the ability to parse the PSD structure
+initializeCanvas((width: number, height: number) => {
+  return {
+    width,
+    height,
+    getContext: () => ({
+      createImageData: (w: number, h: number) => ({
+        width: w,
+        height: h,
+        data: new Uint8ClampedArray(w * h * 4)
+      }),
+      putImageData: () => {
+        // No-op: we don't need actual rendering
+      },
+      getImageData: (x: number, y: number, w: number, h: number) => ({
+        width: w,
+        height: h,
+        data: new Uint8ClampedArray(w * h * 4)
+      })
+    })
+  } as any;
+});
 
 export async function parsePSD(filePath: string): Promise<ParsedPSD> {
   try {
     logger.debug(`Reading PSD file: ${filePath}`);
-    
+
     const buffer = await fs.readFile(filePath);
-    const psd: Psd = readPsd(buffer);
+    // Load layer image data to extract raster content
+    const psd: Psd = readPsd(buffer, {
+      skipLayerImageData: false,  // Enable to extract raster layers
+      skipCompositeImageData: true,
+      skipThumbnail: true
+    });
 
     if (!psd) {
       throw new Error('Failed to parse PSD file');
@@ -45,7 +74,7 @@ function parseLayers(layers: Layer[]): ParsedLayer[] {
 function parseLayer(layer: Layer): ParsedLayer | null {
   try {
     const layerType = determineLayerType(layer);
-    
+
     const parsedLayer: ParsedLayer = {
       id: uuidv4(),
       name: layer.name || 'Unnamed Layer',
@@ -66,9 +95,13 @@ function parseLayer(layer: Layer): ParsedLayer | null {
       parsedLayer.textData = extractTextData(layer);
     }
 
+    // Extract image data for raster layers (image, smartObject, unknown)
+    if (layerType === 'image' || layerType === 'smartObject' || layerType === 'unknown') {
+      parsedLayer.imageData = extractImageData(layer);
+    }
+
     // Additional layer type parsing can be added here
     // - shapeData for vector layers
-    // - imageData for raster layers
     // - maskData if masks are present
 
     return parsedLayer;
@@ -140,6 +173,64 @@ function extractTextData(layer: Layer): TextData | undefined {
     lineHeight: style?.leading,
     letterSpacing: style?.tracking
   };
+}
+
+function extractImageData(layer: Layer): ImageData | undefined {
+  try {
+    // Check if layer has canvas data (raster pixels)
+    if (layer.canvas) {
+      const canvas = layer.canvas;
+      const width = canvas.width || 0;
+      const height = canvas.height || 0;
+
+      if (width === 0 || height === 0) {
+        logger.debug(`Layer ${layer.name} has invalid canvas dimensions`);
+        return undefined;
+      }
+
+      // Get image data from canvas context
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        logger.debug(`Layer ${layer.name} has no canvas context`);
+        return undefined;
+      }
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+
+      if (!imageData || !imageData.data || imageData.data.length === 0) {
+        logger.debug(`Layer ${layer.name} has no pixel data`);
+        return undefined;
+      }
+
+      // Convert to Buffer for storage
+      const buffer = Buffer.from(imageData.data);
+
+      return {
+        buffer,
+        format: 'png',
+        width,
+        height
+      };
+    }
+
+    // Check for imageData property (alternative storage)
+    if (layer.imageData) {
+      const width = layer.right! - layer.left!;
+      const height = layer.bottom! - layer.top!;
+
+      return {
+        buffer: Buffer.from(layer.imageData),
+        format: 'png',
+        width,
+        height
+      };
+    }
+
+    return undefined;
+  } catch (error) {
+    logger.warn(`Failed to extract image data for layer: ${layer.name}`, error);
+    return undefined;
+  }
 }
 
 function extractColor(color?: { r: number; g: number; b: number; a?: number }): Color {

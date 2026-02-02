@@ -18,7 +18,7 @@ export const startConversion = async (
     }
 
     const job = jobStore.getJob(jobId);
-    
+
     if (!job) {
       throw new AppError(404, 'Job not found');
     }
@@ -53,7 +53,7 @@ export const getConversionStatus = async (
     const { jobId } = req.params;
 
     const job = jobStore.getJob(jobId);
-    
+
     if (!job) {
       throw new AppError(404, 'Job not found');
     }
@@ -62,7 +62,8 @@ export const getConversionStatus = async (
       jobId: job.id,
       status: job.status,
       message: getStatusMessage(job.status),
-      result: job.result
+      result: job.result,
+      error: job.error?.message // Include error message if present
     };
 
     res.status(200).json(response);
@@ -80,7 +81,7 @@ export const getConversionResult = async (
     const { jobId } = req.params;
 
     const job = jobStore.getJob(jobId);
-    
+
     if (!job) {
       throw new AppError(404, 'Job not found');
     }
