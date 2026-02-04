@@ -1,14 +1,13 @@
 {
-  "name": "PSD Content Importer",
-  "id": "psd-content-importer",
+  "name": "PSD to Figma Converter",
+  "id": "psd-to-figma-converter",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
   "editorType": ["figma"],
   "networkAccess": {
     "allowedDomains": [
-      "http://localhost:3000",
-      "localhost:3000"
+      "http://localhost:3000"
     ]
   }
 }

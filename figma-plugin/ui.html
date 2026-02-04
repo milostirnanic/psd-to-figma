@@ -17,21 +17,58 @@
       font-size: 16px;
       font-weight: 600;
     }
-    .input-group {
+    .upload-area {
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      padding: 32px;
+      text-align: center;
       margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
-    label {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 12px;
+    .upload-area:hover {
+      border-color: #0066FF;
+      background: #f8f9fa;
+    }
+    .upload-area.dragover {
+      border-color: #0066FF;
+      background: #e6f2ff;
+    }
+    .upload-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 12px;
+      opacity: 0.5;
+    }
+    .upload-text {
+      color: #333;
       font-weight: 500;
+      margin-bottom: 4px;
     }
-    input {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
+    .upload-hint {
+      color: #666;
+      font-size: 12px;
+    }
+    .file-info {
+      background: #f8f9fa;
+      padding: 12px;
       border-radius: 4px;
-      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .file-info.show {
+      display: block;
+    }
+    .file-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    .file-size {
+      font-size: 12px;
+      color: #666;
+    }
+    input[type="file"] {
+      display: none;
     }
     .button-group {
       display: flex;
@@ -47,11 +84,15 @@
       font-weight: 500;
       cursor: pointer;
     }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     .button-primary {
       background: #0066FF;
       color: white;
     }
-    .button-primary:hover {
+    .button-primary:hover:not(:disabled) {
       background: #0052CC;
     }
     .button-secondary {
@@ -99,67 +140,187 @@
   </style>
 </head>
 <body>
-  <h2>PSD Content Importer</h2>
+  <h2>PSD to Figma Converter</h2>
   
-  <div class="input-group">
-    <label for="structureUrl">Structure File URL:</label>
-    <input 
-      type="text" 
-      id="structureUrl" 
-      placeholder="http://localhost:3000/uploads/figma-structure-xxx.json"
-      value="http://localhost:3000/uploads/figma-structure-latest.json"
-    />
+  <div class="upload-area" id="uploadArea">
+    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline points="17 8 12 3 7 8"></polyline>
+      <line x1="12" y1="3" x2="12" y2="15"></line>
+    </svg>
+    <div class="upload-text">Drop PSD file here or click to browse</div>
+    <div class="upload-hint">Maximum file size: 100MB</div>
+  </div>
+  
+  <input type="file" id="fileInput" accept=".psd" />
+  
+  <div class="file-info" id="fileInfo">
+    <div class="file-name" id="fileName"></div>
+    <div class="file-size" id="fileSize"></div>
   </div>
   
   <div class="button-group">
-    <button class="button-primary" id="import">Import Content</button>
-    <button class="button-secondary" id="cancel">Cancel</button>
+    <button class="button-primary" id="convertBtn" disabled>Convert to Figma</button>
+    <button class="button-secondary" id="cancelBtn">Cancel</button>
   </div>
   
   <div id="status" class="status"></div>
   
   <script>
-    const importBtn = document.getElementById('import');
-    const cancelBtn = document.getElementById('cancel');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const convertBtn = document.getElementById('convertBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
     const statusDiv = document.getElementById('status');
-    const urlInput = document.getElementById('structureUrl');
     
-    importBtn.onclick = async () => {
-      const url = urlInput.value.trim();
+    let selectedFile = null;
+    
+    // Click to open file dialog
+    uploadArea.onclick = () => fileInput.click();
+    
+    // Drag and drop handlers
+    uploadArea.ondragover = (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    };
+    
+    uploadArea.ondragleave = () => {
+      uploadArea.classList.remove('dragover');
+    };
+    
+    uploadArea.ondrop = (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
       
-      if (!url) {
-        showStatus('error', 'Please enter a structure file URL');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        handleFile(files[0]);
+      }
+    };
+    
+    // File input change
+    fileInput.onchange = (e) => {
+      if (e.target.files.length > 0) {
+        handleFile(e.target.files[0]);
+      }
+    };
+    
+    function handleFile(file) {
+      // Validate file type
+      if (!file.name.toLowerCase().endsWith('.psd')) {
+        showStatus('error', 'Please select a PSD file');
+        return;
+      }
+      
+      // Validate file size (100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        showStatus('error', 'File is too large. Maximum size is 100MB');
+        return;
+      }
+      
+      selectedFile = file;
+      
+      // Show file info
+      fileName.textContent = file.name;
+      fileSize.textContent = formatFileSize(file.size);
+      fileInfo.classList.add('show');
+      
+      // Enable convert button
+      convertBtn.disabled = false;
+      
+      // Clear any previous status
+      statusDiv.style.display = 'none';
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    
+    convertBtn.onclick = async () => {
+      if (!selectedFile) {
+        showStatus('error', 'Please select a file first');
         return;
       }
       
       try {
-        showStatus('loading', 'Fetching structure file...');
-        importBtn.disabled = true;
+        convertBtn.disabled = true;
+        showStatus('loading', 'Uploading PSD file...');
         
-        // Fetch the structure file
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+        // Upload file to backend
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        
+        const uploadResponse = await fetch('http://localhost:3000/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
         }
         
-        const data = await response.json();
+        const uploadData = await uploadResponse.json();
+        const jobId = uploadData.jobId;
         
-        showStatus('loading', 'Creating nodes in Figma...');
+        showStatus('loading', 'Converting PSD to Figma format...');
         
-        // Send to plugin code
-        parent.postMessage({ 
-          pluginMessage: { 
-            type: 'import-nodes',
-            data: {
-              nodes: data.nodes || [],
-              fileName: data.name || 'Converted PSD'
-            }
-          } 
-        }, '*');
+        // Start conversion
+        const convertResponse = await fetch('http://localhost:3000/api/convert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId })
+        });
+        
+        if (!convertResponse.ok) {
+          throw new Error(`Conversion failed: ${convertResponse.status}`);
+        }
+        
+        // Poll for completion
+        let attempts = 0;
+        while (attempts < 60) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const statusResponse = await fetch(`http://localhost:3000/api/status/${jobId}`);
+          const statusData = await statusResponse.json();
+          
+          if (statusData.status === 'completed') {
+            showStatus('loading', 'Creating nodes in Figma...');
+            
+            // Get the structure file
+            const structureUrl = 'http://localhost:3000/uploads/figma-structure-latest.json';
+            const structureResponse = await fetch(structureUrl);
+            const structureData = await structureResponse.json();
+            
+            // Send to plugin code for rendering
+            parent.postMessage({ 
+              pluginMessage: { 
+                type: 'import-nodes',
+                data: {
+                  nodes: structureData.nodes || [],
+                  fileName: selectedFile.name.replace('.psd', '')
+                }
+              } 
+            }, '*');
+            
+            return;
+            
+          } else if (statusData.status === 'failed') {
+            throw new Error(statusData.error || 'Conversion failed');
+          }
+          
+          attempts++;
+        }
+        
+        throw new Error('Conversion timeout - please try again');
         
       } catch (error) {
         showStatus('error', `Error: ${error.message}`);
-        importBtn.disabled = false;
+        convertBtn.disabled = false;
       }
     };
     
@@ -178,7 +339,7 @@
           }, 2000);
         } else {
           showStatus('error', msg.message);
-          importBtn.disabled = false;
+          convertBtn.disabled = false;
         }
       }
     };

@@ -1,73 +1,79 @@
-# PSD Content Importer - Figma Plugin
+# PSD to Figma Converter - Figma Plugin
 
-This Figma plugin imports converted PSD content into Figma files.
+This Figma plugin converts PSD files directly into Figma content - **no web UI needed!**
 
-## Why This Plugin?
+## Features
 
-Figma's REST API doesn't support creating nodes programmatically. This plugin runs inside Figma and uses the Plugin API to create the actual visual content.
+✨ **Self-Contained Workflow**
+- Upload PSD files directly from the plugin
+- Automatic conversion to Figma format
+- Immediate rendering on the canvas
+- No need to switch between apps
+
+🎨 **Complete Conversion**
+- Creates FRAME nodes for groups
+- Creates TEXT nodes with styling
+- Creates RECTANGLE nodes for shapes/images
+- Preserves hierarchy and positioning
 
 ## Installation
 
 ### 1. Open Figma Desktop
 
-You need the Figma desktop app (not the web version) to run plugins in development mode.
+You need the Figma desktop app (not web browser) to run plugins in development mode.
 
-### 2. Enable Plugin Development
+### 2. Link the Plugin
 
 1. Open Figma Desktop
 2. Go to **Menu → Plugins → Development → New Plugin...**
-3. Choose "Link existing plugin"
-4. Browse to this folder: `/Users/milostirnanic/psd-to-figma-converter/figma-plugin`
-5. Select the `manifest.json` file
-6. Click "Save"
+3. Choose **"Link existing plugin"**
+4. Browse to: `/Users/milostirnanic/psd-to-figma-converter/figma-plugin`
+5. Select `manifest.json`
+6. Click **"Save"**
 
-### 3. Plugin is Now Available
-
-The plugin "PSD Content Importer" will appear in your plugins list.
+✅ Plugin is now installed!
 
 ## Usage
 
-### Automatic Workflow (Recommended)
+### Simple 3-Step Workflow
 
-1. **Upload PSD via web UI** (http://localhost:5173)
-2. **Wait for conversion to complete**
-3. **Click "Open in Figma"** - this opens the file
-4. **In Figma Desktop:**
-   - Go to **Menu → Plugins → Development → PSD Content Importer**
-   - The plugin will auto-detect the latest conversion
-   - Click **"Import Content"**
-   - Content appears on the canvas!
+1. **Open the plugin**
+   - Menu → Plugins → Development → **PSD to Figma Converter**
 
-### Manual Workflow
+2. **Upload your PSD**
+   - Drag & drop a PSD file, or click to browse
+   - Maximum size: 100MB
 
-1. Convert a PSD file using the web UI
-2. Note the structure file path from backend logs
-3. Open the target Figma file
-4. Run the plugin: **Menu → Plugins → Development → PSD Content Importer**
-5. Paste the structure file URL
-6. Click "Import Content"
+3. **Wait for conversion**
+   - File uploads to backend
+   - Converts to Figma format (few seconds)
+   - Content appears on canvas automatically!
+
+✅ That's it! No web UI, no extra steps.
 
 ## How It Works
 
 ```
-User uploads PSD
+User opens plugin in Figma
     ↓
-Backend converts to Figma nodes
+Uploads PSD file from plugin UI
     ↓
-Saves structure file: figma-structure-{key}.json
+Plugin sends file to backend API
     ↓
-Returns Figma file URL
+Backend converts PSD to Figma nodes
     ↓
-User opens file in Figma
+Returns structure JSON to plugin
     ↓
-Runs this plugin
+Plugin creates nodes on canvas
     ↓
-Plugin fetches structure file
-    ↓
-Creates nodes using Figma Plugin API
-    ↓
-Content appears on canvas!
+Content appears immediately!
 ```
+
+**Key Benefits:**
+- ✅ No web browser needed
+- ✅ No separate file management
+- ✅ Everything happens in Figma
+- ✅ Instant visual feedback
 
 ## What Gets Created
 
@@ -93,26 +99,48 @@ The plugin creates:
 - Basic properties only (no effects, masks, or blend modes yet)
 - Focus is on structure and basic styling
 
+## Requirements
+
+**Backend Server Must Be Running:**
+```bash
+cd backend
+npm run dev
+# Server runs on http://localhost:3000
+```
+
+The plugin communicates with the backend to convert PSD files.
+
 ## Troubleshooting
 
-### "Failed to fetch structure file"
-- Check backend is running: `http://localhost:3000`
-- Verify structure file exists in `backend/uploads/`
-- Check URL in plugin UI is correct
+### "Upload failed" or "Cannot connect"
+**Solution:**
+1. Check backend is running: `http://localhost:3000`
+2. Test in browser: `curl http://localhost:3000/api/upload`
+3. Restart backend if needed
 
 ### "Plugin not found in menu"
-- Make sure you linked it in development mode
-- Restart Figma Desktop
-- Check manifest.json path is correct
+**Solution:**
+1. Make sure Figma **Desktop** is running (not web)
+2. Re-link the plugin (see Installation)
+3. Restart Figma Desktop
+
+### "Conversion timeout"
+**Solution:**
+1. Check backend logs for errors
+2. Try a smaller/simpler PSD file first
+3. Verify backend is processing (check terminal)
 
 ### "Font not available"
-- Install the required font in Figma
-- Or let it fall back to Inter
+**Solution:**
+- Plugin tries to load the specified font
+- Falls back to "Inter Regular" if not found
+- Install fonts in Figma for best results
 
 ### "Nothing appears on canvas"
-- Check browser console for errors
-- Verify structure file has `nodes` array
-- Try with a simple PSD first
+**Solution:**
+1. Check Figma console (Help → Toggle Developer Tools)
+2. Check backend logs for conversion errors
+3. Try uploading a simple test PSD
 
 ## Development
 
